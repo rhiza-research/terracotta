@@ -5,7 +5,11 @@ RUN apt-get update \
     -y --no-install-recommends \
     build-essential \
     git \
+    curl \
+    gnupg \
     && rm -rf /var/lib/apt/lists/*
+
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg  add - && apt-get update -y && apt-get install google-cloud-cli -y
 
 COPY ./ /terracotta
 
@@ -25,8 +29,8 @@ RUN pip install --no-cache-dir --upgrade pip \
         pymysql>=1.0.0 \
         psycopg2-binary \
         gunicorn \
-        werkzeug<=0.16.0 \
-        markupsafe<=2.0.1 \
+        werkzeug==0.16.0 \
+        markupsafe==2.0.1 \
     && rm -rf /terracotta
 
 COPY docker/resources /
