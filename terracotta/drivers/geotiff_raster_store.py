@@ -36,7 +36,7 @@ def create_executor() -> Executor:
 
     try:
         # this fails on architectures without /dev/shm
-        executor = ProcessPoolExecutor(max_workers=3)
+        executor = ProcessPoolExecutor(max_workers=settings.MULTIPROCESSING_WORKERS)
     except OSError:
         # fall back to serial evaluation
         warnings.warn(
