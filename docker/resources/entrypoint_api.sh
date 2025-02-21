@@ -7,6 +7,10 @@ if [ -z "$TC_DRIVER_PATH" ]; then
   exit 1
 fi
 
+# Start the script that runs rsync periodically
+#
+./update_rasters.sh &
+
 
 # Start the server
 gunicorn terracotta.server.app:app --bind 0.0.0.0:$TC_SERVER_PORT
