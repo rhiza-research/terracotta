@@ -7,6 +7,7 @@ from typing import Optional, Any, Dict, Tuple, Sequence, TYPE_CHECKING
 import contextlib
 import warnings
 import logging
+import math
 
 import numpy as np
 
@@ -412,3 +413,63 @@ def get_raster_tile(
                 mask |= tile_data == src.nodata
 
     return np.ma.masked_array(tile_data, mask=mask)
+
+
+@trace("get_raster_value")
+def get_raster_value(
+    path: str,
+    *,
+    coordinates: Tuple[float, float],
+    source_crs: str = "epsg:4326",
+    rio_env_options: Optional[Dict[str, Any]] = None,
+) -> Optional[Any]:
+    """Load a single raster value at the given coordinates."""
+    import rasterio
+    from rasterio import warp
+    from rasterio.windows import Window
+
+    if rio_env_options is None:
+        rio_env_options = {}
+
+    with contextlib.ExitStack() as es:
+        es.enter_context(rasterio.Env(**rio_env_options))
+        try:
+            with trace("open_dataset"):
+                src = es.enter_context(rasterio.open(path))
+        except OSError:
+            raise IOError("error while reading file {}".format(path))
+
+        x_coords, y_coords = warp.transform(
+            source_crs, src.crs, [coordinates[0]], [coordinates[1]]
+        )
+        x_coord, y_coord = x_coords[0], y_coords[0]
+
+        if not (
+            src.bounds.left <= x_coord <= src.bounds.right
+            and src.bounds.bottom <= y_coord <= src.bounds.top
+        ):
+            raise exceptions.InvalidArgumentsError("Point is outside image bounds")
+
+        col_idx_float, row_idx_float = ~src.transform * (x_coord, y_coord)
+        epsilon = 1e-9
+        col_idx = math.floor(col_idx_float + epsilon)
+        row_idx = math.floor(row_idx_float + epsilon)
+
+        if row_idx == src.height:
+            row_idx -= 1
+        if col_idx == src.width:
+            col_idx -= 1
+
+        if not (0 <= row_idx < src.height and 0 <= col_idx < src.width):
+            raise exceptions.InvalidArgumentsError("Point is outside image bounds")
+
+        value = src.read(
+            1,
+            window=Window(col_idx, row_idx, 1, 1),
+            masked=True,
+        )[0, 0]
+
+    if np.ma.is_masked(value):
+        return None
+
+    return value.item()

@@ -3,7 +3,7 @@
 Flask route to handle /singleband calls.
 """
 
-from typing import Optional, Any, Mapping, Dict, Tuple
+from typing import Optional, Any, Mapping, Dict, Tuple, cast
 import json
 
 from marshmallow import (
@@ -15,7 +15,7 @@ from marshmallow import (
     ValidationError,
     EXCLUDE,
 )
-from flask import request, send_file, Response
+from flask import request, send_file, Response, jsonify
 
 from terracotta.server.fields import StringOrNumber, validate_stretch_range
 from terracotta.server.flask_api import TILE_API
@@ -155,6 +155,37 @@ class SinglebandPreviewSchema(Schema):
     )
 
 
+class SinglebandDataOptionSchema(Schema):
+    lon = fields.Float(required=True, description="Longitude in WGS84")
+    lat = fields.Float(required=True, description="Latitude in WGS84")
+
+
+class SinglebandDataCoordinateSchema(Schema):
+    class Meta:
+        ordered = True
+
+    lon = fields.Float(required=True)
+    lat = fields.Float(required=True)
+
+
+class SinglebandDataSchema(Schema):
+    class Meta:
+        ordered = True
+
+    keys = fields.Dict(
+        keys=fields.String(),
+        values=fields.String(),
+        required=True,
+        description="Keys identifying dataset",
+    )
+    coordinates = fields.Nested(
+        SinglebandDataCoordinateSchema,
+        required=True,
+        description="Queried coordinates in WGS84",
+    )
+    value = fields.Number(allow_none=True, required=True)
+
+
 @TILE_API.route("/singleband/<path:keys>/preview.png", methods=["GET"])
 def get_singleband_preview(keys: str) -> Response:
     """Return single-band PNG preview image of requested dataset
@@ -179,6 +210,38 @@ def get_singleband_preview(keys: str) -> Response:
                     No dataset found for given key combination
     """
     return _get_singleband_image(keys)
+
+
+@TILE_API.route("/singleband/<path:keys>/data", methods=["GET"])
+def get_singleband_data(keys: str) -> Response:
+    """Get singleband raster value at a geographic point
+    ---
+    get:
+        summary: /singleband (data)
+        description:
+            Retrieve the singleband raster value at the given longitude and latitude
+            for a dataset identified by keys.
+        parameters:
+          - in: path
+            schema: SinglebandPreviewSchema
+          - in: query
+            schema: SinglebandDataOptionSchema
+        responses:
+            200:
+                description: Raster value at requested point
+                schema: SinglebandDataSchema
+            400:
+                description: Invalid query parameters or point outside image bounds
+            404:
+                description: No dataset found for given key combination
+    """
+    from terracotta.handlers.singleband import singleband_data
+
+    parsed_keys = [key for key in keys.split("/") if key]
+    options = cast(Dict[str, Any], SinglebandDataOptionSchema().load(request.args))
+
+    payload = singleband_data(parsed_keys, **options)
+    return jsonify(SinglebandDataSchema().load(payload))
 
 
 def _get_singleband_image(

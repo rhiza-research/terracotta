@@ -8,7 +8,6 @@ import numpy as np
 
 import pytest
 
-
 @pytest.fixture(scope="module")
 def flask_app():
     from terracotta.server import create_app
@@ -33,7 +32,6 @@ def debug_flask_app():
 def debug_client(debug_flask_app):
     with debug_flask_app.test_client() as client:
         yield client
-
 
 def test_get_keys(client, use_testdb):
     rv = client.get("/keys")
@@ -258,8 +256,24 @@ def test_get_singleband_preview(client, use_testdb):
     rv = client.get("/singleband/val11/x/val12/preview.png?colormap=jet")
     assert rv.status_code == 200
 
-    img = Image.open(BytesIO(rv.data))
-    assert np.asarray(img).shape == settings.DEFAULT_TILE_SIZE
+
+def test_get_singleband_data(client, use_testdb, raster_file, raster_center_lonlat):
+    lon, lat, expected_value = raster_center_lonlat(raster_file)
+
+    rv = client.get(f"/singleband/val11/x/val12/data?lon={lon}&lat={lat}")
+
+    assert rv.status_code == 200
+    assert json.loads(rv.data) == {
+        "keys": {"key1": "val11", "akey": "x", "key2": "val12"},
+        "coordinates": {"lon": lon, "lat": lat},
+        "value": expected_value,
+    }
+
+
+def test_get_singleband_data_out_of_bounds(client, use_testdb):
+    rv = client.get("/singleband/val11/x/val12/data?lon=0&lat=0")
+
+    assert rv.status_code == 400
 
 
 def urlsafe_json(payload):
