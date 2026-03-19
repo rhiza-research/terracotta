@@ -276,6 +276,54 @@ def test_get_singleband_data_out_of_bounds(client, use_testdb):
     assert rv.status_code == 400
 
 
+def test_get_rgb_data(client, use_testdb, raster_file, raster_center_lonlat):
+    lon, lat, expected_value = raster_center_lonlat(raster_file)
+
+    rv = client.get(
+        f"/rgb/val21/x/data?lon={lon}&lat={lat}&r=val22&g=val23&b=val24"
+    )
+
+    assert rv.status_code == 200
+    assert json.loads(rv.data) == {
+        "keys": {"key1": "val21", "akey": "x"},
+        "bands": {"r": "val22", "g": "val23", "b": "val24"},
+        "coordinates": {"lon": lon, "lat": lat},
+        "values": {"r": expected_value, "g": expected_value, "b": expected_value},
+    }
+
+
+def test_get_compute_data(client, use_testdb, raster_file, raster_center_lonlat):
+    lon, lat, expected_value = raster_center_lonlat(raster_file)
+
+    rv = client.get(
+        f"/compute/val21/x/data?lon={lon}&lat={lat}"
+        "&expression=v1%2Bv2&v1=val22&v2=val23"
+    )
+
+    assert rv.status_code == 200
+    assert json.loads(rv.data) == {
+        "keys": {"key1": "val21", "akey": "x"},
+        "operands": {"v1": "val22", "v2": "val23"},
+        "expression": "v1+v2",
+        "coordinates": {"lon": lon, "lat": lat},
+        "value": expected_value * 2,
+    }
+
+
+def test_get_rgb_data_out_of_bounds(client, use_testdb):
+    rv = client.get("/rgb/val21/x/data?lon=0&lat=0&r=val22&g=val23&b=val24")
+
+    assert rv.status_code == 400
+
+
+def test_get_compute_data_out_of_bounds(client, use_testdb):
+    rv = client.get(
+        "/compute/val21/x/data?lon=0&lat=0&expression=v1%2Bv2&v1=val22&v2=val23"
+    )
+
+    assert rv.status_code == 400
+
+
 def urlsafe_json(payload):
     payload_json = json.dumps(payload)
     return urllib.parse.quote_plus(payload_json, safe=r',.[]{}:"')

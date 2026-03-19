@@ -3,9 +3,10 @@
 Handle /compute API endpoint. Band file retrieval is multi-threaded.
 """
 
-from typing import Sequence, Tuple, Mapping, Optional, TypeVar
+from typing import Sequence, Tuple, Mapping, Optional, TypeVar, Any, Dict
 from typing.io import BinaryIO
 from concurrent.futures import Future
+from collections import OrderedDict
 
 from terracotta import get_settings, get_driver, image, xyz, exceptions
 from terracotta.profile import trace
@@ -90,3 +91,59 @@ def compute(
 
     out = image.to_uint8(out, *stretch_range)
     return image.array_to_png(out, colormap=colormap)
+
+
+@trace("compute_data_handler")
+def compute_data(
+    expression: str,
+    some_keys: Sequence[str],
+    operand_keys: Mapping[str, str],
+    *,
+    lon: float,
+    lat: float,
+) -> Dict[str, Any]:
+    """Return the computed raster value at a geographic point."""
+    import numpy as np
+
+    from terracotta.expressions import evaluate_expression
+
+    settings = get_settings()
+    driver = get_driver(settings.DRIVER_PATH, provider=settings.DRIVER_PROVIDER)
+
+    with driver.connect():
+        key_names = driver.key_names
+
+        if len(some_keys) != len(key_names) - 1:
+            raise exceptions.InvalidArgumentsError(
+                "must specify all keys except last one"
+            )
+
+        operand_data = {
+            var: driver.get_raster_value((*some_keys, key), coordinates=(lon, lat))
+            for var, key in operand_keys.items()
+        }
+        ordered_keys = OrderedDict(zip(key_names[:-1], some_keys))
+
+    if any(value is None for value in operand_data.values()):
+        value = None
+    else:
+        try:
+            value = evaluate_expression(
+                expression,
+                {var: np.asarray([operand]) for var, operand in operand_data.items()},
+            )
+        except ValueError as exc:
+            raise exceptions.InvalidArgumentsError(
+                f"error while executing expression: {exc!s}"
+            )
+
+        if hasattr(value, "item"):
+            value = value.item()
+
+    return {
+        "keys": ordered_keys,
+        "operands": OrderedDict(operand_keys.items()),
+        "expression": expression,
+        "coordinates": {"lon": lon, "lat": lat},
+        "value": value,
+    }

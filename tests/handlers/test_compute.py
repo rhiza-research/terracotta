@@ -72,6 +72,26 @@ def test_compute_transparency_nan(use_testdb, testdb, raster_file_xyz):
     )
 
 
+def test_compute_data_handler(use_testdb, raster_file, raster_center_lonlat):
+    from terracotta.handlers import compute
+
+    lon, lat, expected_value = raster_center_lonlat(raster_file)
+
+    payload = compute.compute_data(
+        "v1 + v2",
+        ["val21", "x"],
+        {"v1": "val22", "v2": "val23"},
+        lon=lon,
+        lat=lat,
+    )
+
+    assert payload["coordinates"] == {"lon": lon, "lat": lat}
+    assert payload["keys"] == {"key1": "val21", "akey": "x"}
+    assert payload["operands"] == {"v1": "val22", "v2": "val23"}
+    assert payload["expression"] == "v1 + v2"
+    assert payload["value"] == expected_value * 2
+
+
 def test_compute_transparency_mask(use_testdb, testdb, raster_file_xyz):
     import terracotta
     from terracotta.xyz import get_tile_data

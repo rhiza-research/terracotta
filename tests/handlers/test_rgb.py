@@ -222,3 +222,25 @@ def test_rgb_preview(use_testdb):
     raw_img = rgb.rgb(["val21", "x"], ["val22", "val23", "val24"])
     img_data = np.asarray(Image.open(raw_img))
     assert img_data.shape == (*terracotta.get_settings().DEFAULT_TILE_SIZE, 3)
+
+
+def test_rgb_data_handler(use_testdb, raster_file, raster_center_lonlat):
+    from terracotta.handlers import rgb
+
+    lon, lat, expected_value = raster_center_lonlat(raster_file)
+
+    payload = rgb.rgb_data(
+        ["val21", "x"],
+        ["val22", "val23", "val24"],
+        lon=lon,
+        lat=lat,
+    )
+
+    assert payload["coordinates"] == {"lon": lon, "lat": lat}
+    assert payload["keys"] == {"key1": "val21", "akey": "x"}
+    assert payload["bands"] == {"r": "val22", "g": "val23", "b": "val24"}
+    assert payload["values"] == {
+        "r": expected_value,
+        "g": expected_value,
+        "b": expected_value,
+    }

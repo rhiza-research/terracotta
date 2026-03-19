@@ -3,9 +3,10 @@
 Handle /rgb API endpoint. Band file retrieval is multi-threaded.
 """
 
-from typing import Sequence, Tuple, Optional, TypeVar
+from typing import Sequence, Tuple, Optional, TypeVar, Any, Dict
 from typing.io import BinaryIO
 from concurrent.futures import Future
+from collections import OrderedDict
 
 from terracotta import get_settings, get_driver, image, xyz, exceptions
 from terracotta.profile import trace
@@ -108,3 +109,46 @@ def rgb(
 
     out = np.ma.stack(out_arrays, axis=-1)
     return image.array_to_png(out)
+
+
+@trace("rgb_data_handler")
+def rgb_data(
+    some_keys: Sequence[str],
+    rgb_values: Sequence[str],
+    *,
+    lon: float,
+    lat: float,
+) -> Dict[str, Any]:
+    """Return RGB band values at a geographic point."""
+    if len(rgb_values) != 3:
+        raise exceptions.InvalidArgumentsError(
+            "rgb_values argument must contain 3 values"
+        )
+
+    settings = get_settings()
+    driver = get_driver(settings.DRIVER_PATH, provider=settings.DRIVER_PROVIDER)
+
+    with driver.connect():
+        key_names = driver.key_names
+
+        if len(some_keys) != len(key_names) - 1:
+            raise exceptions.InvalidArgumentsError(
+                "must specify all keys except last one"
+            )
+
+        ordered_keys = OrderedDict(zip(key_names[:-1], some_keys))
+        bands = OrderedDict(zip(("r", "g", "b"), rgb_values))
+        values = OrderedDict(
+            (
+                channel,
+                driver.get_raster_value((*some_keys, band_key), coordinates=(lon, lat)),
+            )
+            for channel, band_key in bands.items()
+        )
+
+    return {
+        "keys": ordered_keys,
+        "bands": bands,
+        "coordinates": {"lon": lon, "lat": lat},
+        "values": values,
+    }
