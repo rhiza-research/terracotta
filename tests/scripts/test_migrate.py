@@ -2,17 +2,11 @@ import pytest
 from click.testing import CliRunner
 
 
-def parse_version(verstr):
-    """Convert 'v<major>.<minor>.<patch>' to (major, minor, patch)"""
-    components = verstr.split(".")
-    components[0] = components[0].lstrip("v")
-    return tuple(int(c) for c in components[:3])
-
-
 def migration_testfunc(v07_db, raster_file):
     import terracotta
     from terracotta import get_driver
     from terracotta.scripts import cli
+    from terracotta.scripts.migrate import parse_version
 
     current_version = parse_version(terracotta.__version__)
 
@@ -63,14 +57,15 @@ def test_migrate_next(v07_db, raster_file, monkeypatch, force_reload):
     with monkeypatch.context() as m:
         # pretend we are at the next major version
         import terracotta
+        from terracotta.scripts.migrate import parse_version
 
         current_version = parse_version(terracotta.__version__)
-        next_major_version = (current_version[0], current_version[1] + 1, 0)
+        next_major_version = (current_version[0], current_version[1] + 1)
         m.setattr(terracotta, "__version__", ".".join(map(str, next_major_version)))
 
         from terracotta.migrations import MIGRATIONS
 
-        if next_major_version[:2] not in [m.up_version for m in MIGRATIONS.values()]:
+        if next_major_version not in [m.up_version for m in MIGRATIONS.values()]:
             pytest.skip("No migration available for next major version")
 
         migration_testfunc(v07_db, raster_file)
