@@ -3,11 +3,11 @@
 Flask route to handle /compute calls.
 """
 
-from typing import Optional, Any, Mapping, Dict, Tuple
+from typing import Optional, Any, Mapping, Dict, Tuple, cast
 import json
 
 from marshmallow import Schema, fields, validate, pre_load, ValidationError, EXCLUDE
-from flask import request, send_file, Response
+from flask import request, send_file, Response, jsonify
 
 from terracotta.server.flask_api import TILE_API
 from terracotta.cmaps import AVAILABLE_CMAPS
@@ -115,6 +115,58 @@ class ComputePreviewSchema(Schema):
     )
 
 
+class ComputeDataOptionSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    expression = fields.String(
+        description="Mathematical expression to execute.",
+        example="(v1 - v2) / (v1 + v2)",
+        required=True,
+    )
+    lon = fields.Float(required=True, description="Longitude in WGS84")
+    lat = fields.Float(required=True, description="Latitude in WGS84")
+
+    v1 = _operator_field(1)
+    v2 = _operator_field(2)
+    v3 = _operator_field(3)
+    v4 = _operator_field(4)
+    v5 = _operator_field(5)
+
+
+class ComputeDataCoordinateSchema(Schema):
+    class Meta:
+        ordered = True
+
+    lon = fields.Float(required=True)
+    lat = fields.Float(required=True)
+
+
+class ComputeDataSchema(Schema):
+    class Meta:
+        ordered = True
+
+    keys = fields.Dict(
+        keys=fields.String(),
+        values=fields.String(),
+        required=True,
+        description="Keys identifying dataset",
+    )
+    operands = fields.Dict(
+        keys=fields.String(),
+        values=fields.String(),
+        required=True,
+        description="Operand-to-band mapping for the expression",
+    )
+    expression = fields.String(required=True)
+    coordinates = fields.Nested(
+        ComputeDataCoordinateSchema,
+        required=True,
+        description="Queried coordinates in WGS84",
+    )
+    value = fields.Number(allow_none=True, required=True)
+
+
 @TILE_API.route("/compute/preview.png", methods=["GET"])
 @TILE_API.route("/compute/<path:keys>/preview.png", methods=["GET"])
 def get_compute_preview(keys: str = "") -> Response:
@@ -141,6 +193,46 @@ def get_compute_preview(keys: str = "") -> Response:
                     No dataset found for given key combination
     """
     return _get_compute_image(keys)
+
+
+@TILE_API.route("/compute/data", methods=["GET"])
+@TILE_API.route("/compute/<path:keys>/data", methods=["GET"])
+def get_compute_data(keys: str = "") -> Response:
+    """Retrieve computed raster value at a geographic point
+    ---
+    get:
+        summary: /compute (data)
+        description:
+            Evaluate the given compute expression at the given longitude and latitude.
+        parameters:
+            - in: path
+              schema: ComputePreviewSchema
+            - in: query
+              schema: ComputeDataOptionSchema
+        responses:
+            200:
+                description: Computed raster value at requested point
+                schema: ComputeDataSchema
+            400:
+                description: Invalid query parameters or point outside image bounds
+            404:
+                description: No dataset found for given key combination
+    """
+    from terracotta.handlers.compute import compute_data
+
+    parsed_keys = [key for key in keys.split("/") if key]
+    options = cast(Dict[str, Any], ComputeDataOptionSchema().load(request.args))
+
+    operand_keys = {}
+    for i in range(1, 6):
+        field_name = f"v{i}"
+        if field_name not in options:
+            continue
+        operand_keys[field_name] = options.pop(field_name)
+
+    expression = options.pop("expression")
+    payload = compute_data(expression, parsed_keys, operand_keys, **options)
+    return jsonify(ComputeDataSchema().load(payload))
 
 
 def _get_compute_image(

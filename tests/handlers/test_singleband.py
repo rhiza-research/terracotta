@@ -116,6 +116,18 @@ def test_singleband_noxyz(use_testdb):
     assert img_data.shape == settings.DEFAULT_TILE_SIZE
 
 
+def test_singleband_data_handler(use_testdb, raster_file, raster_center_lonlat):
+    from terracotta.handlers import singleband
+
+    lon, lat, expected_value = raster_center_lonlat(raster_file)
+
+    payload = singleband.singleband_data(["val11", "x", "val12"], lon=lon, lat=lat)
+
+    assert payload["coordinates"] == {"lon": lon, "lat": lat}
+    assert payload["keys"] == {"key1": "val11", "akey": "x", "key2": "val12"}
+    assert payload["value"] == expected_value
+
+
 def test_singleband_stretch(use_testdb, testdb, raster_file_xyz):
     import terracotta
     from terracotta.xyz import get_tile_data

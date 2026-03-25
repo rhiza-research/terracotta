@@ -3,10 +3,11 @@
 Handle /singleband API endpoint.
 """
 
-from typing import Sequence, Mapping, Union, Tuple, Optional, TypeVar, cast
+from typing import Sequence, Mapping, Union, Tuple, Optional, TypeVar, cast, Any, Dict
 from typing.io import BinaryIO
 
 import collections
+from collections import OrderedDict
 
 from terracotta import get_settings, get_driver, image, xyz
 from terracotta.profile import trace
@@ -74,3 +75,28 @@ def singleband(
         out = image.to_uint8(tile_data, *stretch_range_)
 
     return image.array_to_png(out, colormap=cmap_or_palette)
+
+
+@trace("singleband_data_handler")
+def singleband_data(
+    keys: Union[Sequence[str], Mapping[str, str]], *, lon: float, lat: float
+) -> Dict[str, Any]:
+    """Return the singleband raster value at a geographic point."""
+    settings = get_settings()
+    driver = get_driver(settings.DRIVER_PATH, provider=settings.DRIVER_PROVIDER)
+
+    with driver.connect():
+        value = driver.get_raster_value(keys, coordinates=(lon, lat))
+
+    if isinstance(keys, Mapping):
+        ordered_keys = OrderedDict(
+            (key_name, keys[key_name]) for key_name in driver.key_names
+        )
+    else:
+        ordered_keys = OrderedDict(zip(driver.key_names, keys))
+
+    return {
+        "keys": ordered_keys,
+        "coordinates": {"lon": lon, "lat": lat},
+        "value": value,
+    }

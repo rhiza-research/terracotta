@@ -13,6 +13,22 @@ import numpy as np
 import rasterio
 
 
+@pytest.fixture()
+def raster_center_lonlat():
+    def _raster_center_lonlat(raster_file):
+        with rasterio.open(str(raster_file)) as src:
+            center_x = (src.bounds.left + src.bounds.right) / 2
+            center_y = (src.bounds.bottom + src.bounds.top) / 2
+            lon, lat = rasterio.warp.transform(
+                src.crs, "epsg:4326", [center_x], [center_y]
+            )
+            expected_value = src.read(1, masked=True)[src.height // 2, src.width // 2]
+
+        return lon[0], lat[0], expected_value.item()
+
+    return _raster_center_lonlat
+
+
 def pytest_configure(config):
     os.environ["TC_TESTING"] = "1"
 
@@ -439,11 +455,13 @@ def driver_path(provider, tmpdir, mysql_server, postgresql_server):
     from urllib.parse import urlparse
 
     def validate_con_info(con_info, db_scheme):
-        return (
-            con_info.scheme == db_scheme
-            and con_info.hostname
-            and con_info.username
-            and not con_info.path
+        return all(
+            [
+                con_info.scheme == db_scheme,
+                con_info.hostname,
+                con_info.username,
+                not con_info.path,
+            ]
         )
 
     def random_string(length):

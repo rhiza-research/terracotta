@@ -3,7 +3,7 @@
 Base class for drivers operating on physical raster files.
 """
 
-from typing import Optional, Any, Callable, Sequence, Dict, TypeVar
+from typing import Optional, Any, Callable, Sequence, Dict, TypeVar, Tuple, cast
 from concurrent.futures import Future, Executor, ProcessPoolExecutor, ThreadPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 
@@ -101,7 +101,7 @@ class GeoTiffRasterStore(RasterStore):
         *,
         extra_metadata: Optional[Any] = None,
         use_chunks: Optional[bool] = None,
-        max_shape: Optional[Sequence[int]] = None
+        max_shape: Optional[Sequence[int]] = None,
     ) -> Dict[str, Any]:
         return raster.compute_metadata(
             path,
@@ -120,7 +120,7 @@ class GeoTiffRasterStore(RasterStore):
         tile_bounds: Optional[Sequence[float]] = None,
         tile_size: Optional[Sequence[int]] = None,
         preserve_values: bool = False,
-        asynchronous: bool = False
+        asynchronous: bool = False,
     ) -> Any:
         future: Future[np.ma.MaskedArray]
         result: np.ma.MaskedArray
@@ -180,3 +180,19 @@ class GeoTiffRasterStore(RasterStore):
                 self._raster_cache[key] = value
         except ValueError:  # value too large
             pass
+
+    def get_raster_value(
+        self,
+        path: str,
+        *,
+        coordinates: Sequence[float],
+        coordinates_crs: str = "epsg:4326",
+    ) -> Any:
+        point_coordinates = cast(Tuple[float, float], tuple(coordinates))
+
+        return raster.get_raster_value(
+            path,
+            coordinates=point_coordinates,
+            coordinates_crs=coordinates_crs,
+            rio_env_options=self._RIO_ENV_OPTIONS,
+        )

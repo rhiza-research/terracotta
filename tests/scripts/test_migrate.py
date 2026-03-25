@@ -2,19 +2,10 @@ import pytest
 from click.testing import CliRunner
 
 
-def parse_version(verstr):
-    """Convert 'v<major>.<minor>.<patch>' to (major, minor, patch)"""
-    components = verstr.split(".")
-    components[0] = components[0].lstrip("v")
-    return tuple(int(c) for c in components[:3])
-
-
-def migration_testfunc(v07_db, raster_file):
-    import terracotta
+def migration_testfunc(v07_db, raster_file, to_version):
     from terracotta import get_driver
     from terracotta.scripts import cli
-
-    current_version = parse_version(terracotta.__version__)
+    from terracotta.scripts.migrate import join_version
 
     # run migration
     runner = CliRunner()
@@ -26,7 +17,7 @@ def migration_testfunc(v07_db, raster_file):
             "--from",
             "v0.7",
             "--to",
-            f"v{current_version[0]}.{current_version[1]}",
+            join_version(to_version),
             "--yes",
         ],
     )
@@ -55,7 +46,14 @@ def migration_testfunc(v07_db, raster_file):
 
 def test_migrate(v07_db, raster_file):
     """Test database migration to this major version."""
-    migration_testfunc(v07_db, raster_file)
+    import terracotta
+    from terracotta.scripts.migrate import parse_version
+
+    current_version = parse_version(terracotta.__version__)
+    if current_version < (0, 7):
+        pytest.skip("Detected package version predates supported migration target")
+
+    migration_testfunc(v07_db, raster_file, current_version)
 
 
 def test_migrate_next(v07_db, raster_file, monkeypatch, force_reload):
@@ -63,14 +61,15 @@ def test_migrate_next(v07_db, raster_file, monkeypatch, force_reload):
     with monkeypatch.context() as m:
         # pretend we are at the next major version
         import terracotta
+        from terracotta.scripts.migrate import parse_version
 
         current_version = parse_version(terracotta.__version__)
-        next_major_version = (current_version[0], current_version[1] + 1, 0)
+        next_major_version = (current_version[0], current_version[1] + 1)
         m.setattr(terracotta, "__version__", ".".join(map(str, next_major_version)))
 
         from terracotta.migrations import MIGRATIONS
 
-        if next_major_version[:2] not in [m.up_version for m in MIGRATIONS.values()]:
+        if next_major_version not in [m.up_version for m in MIGRATIONS.values()]:
             pytest.skip("No migration available for next major version")
 
-        migration_testfunc(v07_db, raster_file)
+        migration_testfunc(v07_db, raster_file, next_major_version)

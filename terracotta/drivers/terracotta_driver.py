@@ -333,6 +333,22 @@ class TerracottaDriver:
             max_shape=max_shape,
         )
 
+    def get_raster_value(
+        self,
+        keys: ExtendedKeysType,
+        *,
+        coordinates: Sequence[float],
+        coordinates_crs: str = "epsg:4326",
+    ) -> Any:
+        """Load a single raster value at the given coordinates."""
+        path = squeeze(self.get_datasets(keys).values())
+
+        return self.raster_store.get_raster_value(
+            path=path,
+            coordinates=coordinates,
+            coordinates_crs=coordinates_crs,
+        )
+
     def _standardize_keys(
         self, keys: ExtendedKeysType, requires_all_keys: bool = True
     ) -> KeysType:

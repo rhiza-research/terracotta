@@ -3,11 +3,11 @@
 Flask route to handle /rgb calls.
 """
 
-from typing import Optional, Any, Mapping, Dict, Tuple
+from typing import Optional, Any, Mapping, Dict, Tuple, cast
 import json
 
 from marshmallow import Schema, fields, validate, pre_load, ValidationError, EXCLUDE
-from flask import request, send_file, Response
+from flask import request, send_file, Response, jsonify
 
 from terracotta.server.fields import StringOrNumber, validate_stretch_range
 from terracotta.server.flask_api import TILE_API
@@ -126,6 +126,54 @@ class RGBPreviewQuerySchema(Schema):
     )
 
 
+class RGBDataOptionSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    r = fields.String(required=True, description="Key value for red band")
+    g = fields.String(required=True, description="Key value for green band")
+    b = fields.String(required=True, description="Key value for blue band")
+    lon = fields.Float(required=True, description="Longitude in WGS84")
+    lat = fields.Float(required=True, description="Latitude in WGS84")
+
+
+class RGBDataCoordinateSchema(Schema):
+    class Meta:
+        ordered = True
+
+    lon = fields.Float(required=True)
+    lat = fields.Float(required=True)
+
+
+class RGBDataSchema(Schema):
+    class Meta:
+        ordered = True
+
+    keys = fields.Dict(
+        keys=fields.String(),
+        values=fields.String(),
+        required=True,
+        description="Keys identifying dataset",
+    )
+    bands = fields.Dict(
+        keys=fields.String(),
+        values=fields.String(),
+        required=True,
+        description="Channel-to-band mapping",
+    )
+    coordinates = fields.Nested(
+        RGBDataCoordinateSchema,
+        required=True,
+        description="Queried coordinates in WGS84",
+    )
+    values = fields.Dict(
+        keys=fields.String(),
+        values=fields.Number(allow_none=True),
+        required=True,
+        description="Underlying band values at the queried point",
+    )
+
+
 @TILE_API.route("/rgb/preview.png", methods=["GET"])
 @TILE_API.route("/rgb/<path:keys>/preview.png", methods=["GET"])
 def get_rgb_preview(keys: str = "") -> Response:
@@ -151,6 +199,40 @@ def get_rgb_preview(keys: str = "") -> Response:
                     No dataset found for given key combination
     """
     return _get_rgb_image(keys)
+
+
+@TILE_API.route("/rgb/data", methods=["GET"])
+@TILE_API.route("/rgb/<path:keys>/data", methods=["GET"])
+def get_rgb_data(keys: str = "") -> Response:
+    """Retrieve RGB band values at a geographic point
+    ---
+    get:
+        summary: /rgb (data)
+        description:
+            Retrieve the underlying red, green, and blue band values at the
+            given longitude and latitude.
+        parameters:
+            - in: path
+              schema: RGBPreviewQuerySchema
+            - in: query
+              schema: RGBDataOptionSchema
+        responses:
+            200:
+                description: RGB band values at requested point
+                schema: RGBDataSchema
+            400:
+                description: Invalid query parameters or point outside image bounds
+            404:
+                description: No dataset found for given key combination
+    """
+    from terracotta.handlers.rgb import rgb_data
+
+    options = cast(Dict[str, Any], RGBDataOptionSchema().load(request.args))
+    some_keys = [key for key in keys.split("/") if key]
+    rgb_values = (options.pop("r"), options.pop("g"), options.pop("b"))
+
+    payload = rgb_data(some_keys, rgb_values, **options)
+    return jsonify(RGBDataSchema().load(payload))
 
 
 def _get_rgb_image(

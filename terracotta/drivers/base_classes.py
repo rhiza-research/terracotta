@@ -147,6 +147,17 @@ class RasterStore(ABC):
         pass
 
     @abstractmethod
+    def get_raster_value(
+        self,
+        path: str,
+        *,
+        coordinates: Sequence[float],
+        coordinates_crs: str = "epsg:4326",
+    ) -> Any:
+        """Load a single raster value with given path and coordinates."""
+        pass
+
+    @abstractmethod
     def compute_metadata(
         self,
         path: str,

@@ -18,6 +18,7 @@ long_description = re.sub(
 numpy_constraints = (
     ">=1.15",
     "!=1.17.0",
+    "<2.0.0",
 )
 numpy_version = ",".join(numpy_constraints)
 
@@ -66,13 +67,13 @@ setup(
         "click-spinner",
         "flask",
         "flask_cors",
-        "marshmallow>=3.0.0",
+        "marshmallow>=3.0.0, <4",
         "mercantile",
         "numpy%s" % numpy_version,
         "pillow",
         "pyyaml>=3.10",  # downstream dependency of apispec
         "shapely",
-        "rasterio>=1.3.0",
+        "rasterio>=1.3.0,<1.5",
         "shapely",
         "sqlalchemy>=1.4.1",
         "toml",

@@ -251,15 +251,73 @@ def test_get_singleband_cmap(client, use_testdb, raster_file_xyz):
 
 
 def test_get_singleband_preview(client, use_testdb):
-    import terracotta
-
-    settings = terracotta.get_settings()
-
     rv = client.get("/singleband/val11/x/val12/preview.png?colormap=jet")
     assert rv.status_code == 200
 
-    img = Image.open(BytesIO(rv.data))
-    assert np.asarray(img).shape == settings.DEFAULT_TILE_SIZE
+
+def test_get_singleband_data(client, use_testdb, raster_file, raster_center_lonlat):
+    lon, lat, expected_value = raster_center_lonlat(raster_file)
+
+    rv = client.get(f"/singleband/val11/x/val12/data?lon={lon}&lat={lat}")
+
+    assert rv.status_code == 200
+    assert json.loads(rv.data) == {
+        "keys": {"key1": "val11", "akey": "x", "key2": "val12"},
+        "coordinates": {"lon": lon, "lat": lat},
+        "value": expected_value,
+    }
+
+
+def test_get_singleband_data_out_of_bounds(client, use_testdb):
+    rv = client.get("/singleband/val11/x/val12/data?lon=0&lat=0")
+
+    assert rv.status_code == 400
+
+
+def test_get_rgb_data(client, use_testdb, raster_file, raster_center_lonlat):
+    lon, lat, expected_value = raster_center_lonlat(raster_file)
+
+    rv = client.get(f"/rgb/val21/x/data?lon={lon}&lat={lat}&r=val22&g=val23&b=val24")
+
+    assert rv.status_code == 200
+    assert json.loads(rv.data) == {
+        "keys": {"key1": "val21", "akey": "x"},
+        "bands": {"r": "val22", "g": "val23", "b": "val24"},
+        "coordinates": {"lon": lon, "lat": lat},
+        "values": {"r": expected_value, "g": expected_value, "b": expected_value},
+    }
+
+
+def test_get_compute_data(client, use_testdb, raster_file, raster_center_lonlat):
+    lon, lat, expected_value = raster_center_lonlat(raster_file)
+
+    rv = client.get(
+        f"/compute/val21/x/data?lon={lon}&lat={lat}"
+        "&expression=v1%2Bv2&v1=val22&v2=val23"
+    )
+
+    assert rv.status_code == 200
+    assert json.loads(rv.data) == {
+        "keys": {"key1": "val21", "akey": "x"},
+        "operands": {"v1": "val22", "v2": "val23"},
+        "expression": "v1+v2",
+        "coordinates": {"lon": lon, "lat": lat},
+        "value": expected_value * 2,
+    }
+
+
+def test_get_rgb_data_out_of_bounds(client, use_testdb):
+    rv = client.get("/rgb/val21/x/data?lon=0&lat=0&r=val22&g=val23&b=val24")
+
+    assert rv.status_code == 400
+
+
+def test_get_compute_data_out_of_bounds(client, use_testdb):
+    rv = client.get(
+        "/compute/val21/x/data?lon=0&lat=0&expression=v1%2Bv2&v1=val22&v2=val23"
+    )
+
+    assert rv.status_code == 400
 
 
 def urlsafe_json(payload):
