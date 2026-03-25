@@ -260,9 +260,7 @@ def test_get_raster_tile_out_of_bounds(raster_file):
         raster.get_raster_tile(str(raster_file), tile_bounds=bounds)
 
 
-def test_get_raster_value_accepts_coordinates_crs(
-    raster_file, raster_center_lonlat
-):
+def test_get_raster_value_accepts_coordinates_crs(raster_file, raster_center_lonlat):
     from terracotta import raster
 
     lon, lat, expected_value = raster_center_lonlat(raster_file)

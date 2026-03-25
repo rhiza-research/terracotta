@@ -285,9 +285,8 @@ def get_resampling_enum(method: str) -> Any:
 def has_alpha_band(src: "DatasetReader") -> bool:
     from rasterio.enums import MaskFlags, ColorInterp
 
-    return (
-        any([MaskFlags.alpha in flags for flags in src.mask_flag_enums])
-        or ColorInterp.alpha in src.colorinterp
+    return any([MaskFlags.alpha in flags for flags in src.mask_flag_enums]) or (
+        ColorInterp.alpha in src.colorinterp
     )
 
 
@@ -339,11 +338,8 @@ def get_raster_tile(
 
         # prevent loads of very sparse data
         cover_ratio = (
-            (dst_bounds[2] - dst_bounds[0])
-            / (tile_bounds[2] - tile_bounds[0])
-            * (dst_bounds[3] - dst_bounds[1])
-            / (tile_bounds[3] - tile_bounds[1])
-        )
+            (dst_bounds[2] - dst_bounds[0]) / (tile_bounds[2] - tile_bounds[0])
+        ) * ((dst_bounds[3] - dst_bounds[1]) / (tile_bounds[3] - tile_bounds[1]))
 
         if cover_ratio < 0.01:
             raise exceptions.TileOutOfBoundsError("dataset covers less than 1% of tile")
@@ -446,7 +442,8 @@ def get_raster_value(
 
         if not (
             src.bounds.left <= x_coord <= src.bounds.right
-            and src.bounds.bottom <= y_coord <= src.bounds.top
+            and y_coord >= src.bounds.bottom
+            and y_coord <= src.bounds.top
         ):
             raise exceptions.InvalidArgumentsError("Point is outside image bounds")
 

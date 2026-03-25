@@ -101,7 +101,7 @@ class GeoTiffRasterStore(RasterStore):
         *,
         extra_metadata: Optional[Any] = None,
         use_chunks: Optional[bool] = None,
-        max_shape: Optional[Sequence[int]] = None
+        max_shape: Optional[Sequence[int]] = None,
     ) -> Dict[str, Any]:
         return raster.compute_metadata(
             path,
@@ -120,7 +120,7 @@ class GeoTiffRasterStore(RasterStore):
         tile_bounds: Optional[Sequence[float]] = None,
         tile_size: Optional[Sequence[int]] = None,
         preserve_values: bool = False,
-        asynchronous: bool = False
+        asynchronous: bool = False,
     ) -> Any:
         future: Future[np.ma.MaskedArray]
         result: np.ma.MaskedArray

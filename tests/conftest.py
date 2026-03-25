@@ -455,11 +455,13 @@ def driver_path(provider, tmpdir, mysql_server, postgresql_server):
     from urllib.parse import urlparse
 
     def validate_con_info(con_info, db_scheme):
-        return (
-            con_info.scheme == db_scheme
-            and con_info.hostname
-            and con_info.username
-            and not con_info.path
+        return all(
+            [
+                con_info.scheme == db_scheme,
+                con_info.hostname,
+                con_info.username,
+                not con_info.path,
+            ]
         )
 
     def random_string(length):

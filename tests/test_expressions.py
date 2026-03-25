@@ -204,10 +204,12 @@ def test_mask_invalid():
     from terracotta.expressions import evaluate_expression
 
     res = evaluate_expression("where(v1 + v2 < 10, nan, 0)", OPERANDS)
-    mask = (
-        (OPERANDS["v1"] + OPERANDS["v2"] < 10)
-        | OPERANDS["v1"].mask
-        | OPERANDS["v2"].mask
+    mask = np.logical_or.reduce(
+        [
+            OPERANDS["v1"] + OPERANDS["v2"] < 10,
+            OPERANDS["v1"].mask,
+            OPERANDS["v2"].mask,
+        ]
     )
 
     assert isinstance(res, np.ma.MaskedArray)

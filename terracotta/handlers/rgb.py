@@ -24,7 +24,7 @@ def rgb(
     tile_xyz: Optional[Tuple[int, int, int]] = None,
     *,
     stretch_ranges: Optional[ListOfRanges] = None,
-    tile_size: Optional[Tuple[int, int]] = None
+    tile_size: Optional[Tuple[int, int]] = None,
 ) -> BinaryIO:
     """Return RGB image as PNG
 

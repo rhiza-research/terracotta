@@ -8,6 +8,7 @@ import numpy as np
 
 import pytest
 
+
 @pytest.fixture(scope="module")
 def flask_app():
     from terracotta.server import create_app
@@ -32,6 +33,7 @@ def debug_flask_app():
 def debug_client(debug_flask_app):
     with debug_flask_app.test_client() as client:
         yield client
+
 
 def test_get_keys(client, use_testdb):
     rv = client.get("/keys")
@@ -249,10 +251,6 @@ def test_get_singleband_cmap(client, use_testdb, raster_file_xyz):
 
 
 def test_get_singleband_preview(client, use_testdb):
-    import terracotta
-
-    settings = terracotta.get_settings()
-
     rv = client.get("/singleband/val11/x/val12/preview.png?colormap=jet")
     assert rv.status_code == 200
 
@@ -279,9 +277,7 @@ def test_get_singleband_data_out_of_bounds(client, use_testdb):
 def test_get_rgb_data(client, use_testdb, raster_file, raster_center_lonlat):
     lon, lat, expected_value = raster_center_lonlat(raster_file)
 
-    rv = client.get(
-        f"/rgb/val21/x/data?lon={lon}&lat={lat}&r=val22&g=val23&b=val24"
-    )
+    rv = client.get(f"/rgb/val21/x/data?lon={lon}&lat={lat}&r=val22&g=val23&b=val24")
 
     assert rv.status_code == 200
     assert json.loads(rv.data) == {
