@@ -207,8 +207,8 @@ def test_mask_invalid():
     mask = np.logical_or.reduce(
         [
             OPERANDS["v1"] + OPERANDS["v2"] < 10,
-            OPERANDS["v1"].mask,
-            OPERANDS["v2"].mask,
+            np.ma.getmaskarray(OPERANDS["v1"]),
+            np.ma.getmaskarray(OPERANDS["v2"]),
         ]
     )
 
