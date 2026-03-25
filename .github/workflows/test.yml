@@ -24,7 +24,7 @@ jobs:
 
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.9", "3.12"]
+        python-version: ["3.10", "3.12"]
 
     defaults:
       run:
@@ -96,7 +96,6 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v1
 
-
   test-conda:
     name: Run tests (with conda)
 
@@ -107,7 +106,7 @@ jobs:
 
       matrix:
         os: [macos-latest, windows-latest]
-        python-version: ["3.9", "3.12"]
+        python-version: ["3.12"]
 
     defaults:
       run:
@@ -141,8 +140,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/conda_pkgs_dir
-          key:
-            ${{ runner.os }}-conda-${{ matrix.python-version }}-${{ hashFiles('environment.yml') }}
+          key: ${{ runner.os }}-conda-${{ matrix.python-version }}-${{ hashFiles('environment.yml') }}
 
       - uses: conda-incubator/setup-miniconda@v3
         with:
