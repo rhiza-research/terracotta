@@ -52,10 +52,7 @@ setup(
     # module
     packages=find_packages(exclude=["docs", "tests"]),
     python_requires=">=3.9",
-    use_scm_version={
-        "write_to": "terracotta/_version.py",
-        "fallback_version": "0.8.5",
-    },
+    use_scm_version={"write_to": "terracotta/_version.py"},
     # dependencies
     setup_requires=[
         "setuptools_scm",
