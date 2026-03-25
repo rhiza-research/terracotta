@@ -338,7 +338,7 @@ class TerracottaDriver:
         keys: ExtendedKeysType,
         *,
         coordinates: Sequence[float],
-        source_crs: str = "epsg:4326",
+        coordinates_crs: str = "epsg:4326",
     ) -> Any:
         """Load a single raster value at the given coordinates."""
         path = squeeze(self.get_datasets(keys).values())
@@ -346,7 +346,7 @@ class TerracottaDriver:
         return self.raster_store.get_raster_value(
             path=path,
             coordinates=coordinates,
-            source_crs=source_crs,
+            coordinates_crs=coordinates_crs,
         )
 
     def _standardize_keys(

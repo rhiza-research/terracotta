@@ -152,7 +152,7 @@ class RasterStore(ABC):
         path: str,
         *,
         coordinates: Sequence[float],
-        source_crs: str = "epsg:4326",
+        coordinates_crs: str = "epsg:4326",
     ) -> Any:
         """Load a single raster value with given path and coordinates."""
         pass

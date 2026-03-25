@@ -420,7 +420,7 @@ def get_raster_value(
     path: str,
     *,
     coordinates: Tuple[float, float],
-    source_crs: str = "epsg:4326",
+    coordinates_crs: str = "epsg:4326",
     rio_env_options: Optional[Dict[str, Any]] = None,
 ) -> Optional[Any]:
     """Load a single raster value at the given coordinates."""
@@ -440,7 +440,7 @@ def get_raster_value(
             raise IOError("error while reading file {}".format(path))
 
         x_coords, y_coords = warp.transform(
-            source_crs, src.crs, [coordinates[0]], [coordinates[1]]
+            coordinates_crs, src.crs, [coordinates[0]], [coordinates[1]]
         )
         x_coord, y_coord = x_coords[0], y_coords[0]
 

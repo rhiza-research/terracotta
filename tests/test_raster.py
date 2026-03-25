@@ -260,6 +260,22 @@ def test_get_raster_tile_out_of_bounds(raster_file):
         raster.get_raster_tile(str(raster_file), tile_bounds=bounds)
 
 
+def test_get_raster_value_accepts_coordinates_crs(
+    raster_file, raster_center_lonlat
+):
+    from terracotta import raster
+
+    lon, lat, expected_value = raster_center_lonlat(raster_file)
+
+    value = raster.get_raster_value(
+        str(raster_file),
+        coordinates=(lon, lat),
+        coordinates_crs="epsg:4326",
+    )
+
+    assert value == expected_value
+
+
 def test_get_raster_no_nodata(big_raster_file_nomask):
     from terracotta import raster
 
